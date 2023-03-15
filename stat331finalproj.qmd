@@ -1,27 +1,385 @@
 ---
-title: "finalProject"
-format: html
-editor: visual
-self-contained: true
+title: "The Clean and the Green"
+subtitle: "Investigating the Relationship Between Income and Sanitation"
+author: "Giovani Thai, William Gladden, Soren Paetau"
+format: 
+  html:
+    self-contained: true
+    code-tools: true
+    code-fold: true
+    toc: true
+    number-sections: false
+    smooth-scroll: true
+    theme: minty
+editor: source
+execute: 
+  error: true
+  echo: true
+  message: false
+  warning: false
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
-
-```{r}
-1 + 1
+```{r setup}
+library(tidyverse)
+library(broom)
+library(ggridges)
+library(RColorBrewer)
+library(knitr)
+library(DT)
+library(kableExtra)
+library(gganimate)
+library(gifski)
 ```
 
-You can add options to executable code like this
+# Introduction
 
-```{r}
-#| echo: false
-2 * 2
+```{r import}
+
+sanitation.data <- read_csv("at_least_basic_sanitation_overall_access_percent.csv")
+income.data <- read_csv("income_per_person_gdppercapita_ppp_inflation_adjusted.csv")
+colnames(income.data) <- c("country", as.numeric(1799:2049))
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+We are interested in the relationship between income and sanitation levels. One might assume that as income per person increases, so too will the access to basic necessities, including hygienic products and facilities, such as bathrooms and showers. We aim to analyze data relating to these factors, outlined in the process below.
+
+```{r}
+income.data |>
+  slice_head(n = 1000) |>
+  select(country, `1999`:`2002`) |>
+  datatable(class = "cell-border",
+            rownames = FALSE,
+            caption = "Table 1: Preview of Income Data Set, 1999-2003.",
+            filter = "top")
+```
+
+Our income data set measures the total GDP of a country per person for 216 countries between the years of 1892 and 2049, with units in fixed 2017 prices. This number is adjusted for PPP, or the differences between costs of living and essential products, across countries. The data comes from the World Bank, the Maddison Project Database, and the Penn World Table. Historical estimates were used for early years; forecasts from the IMF's Economic Outlook were used to project income in the future.
+
+Source: <https://www.gapminder.org/data/documentation/gd001/>
+
+```{r}
+sanitation.data |>
+  slice_head(n = 1000) |>
+  select(1:5) |>
+  datatable(class = "cell-border",
+            rownames = FALSE,
+            caption = "Table 2: Preview of Sanitation Data Set, 1999-2002.",
+            filter = "top")
+```
+
+Our sanitation data set measures the percentage of people (living in both urban and rural settings) who use at lease basic sanitation services not shared with other households. This includes flushing and pouring to piped sewer systems, septic, and ventilation for pit latrines, such as squat toilets.
+
+The data was collected by the World Health Organization and UNICEF, falling between the years of 1999 to 2019.
+
+Source: <https://data.worldbank.org/indicator/SH.STA.SMSS.ZS>
+
+We hypothesize that there will be a positive relation between income per person and percentage of people with basic sanitation at their disposal. We would also like to investigate and highlight any potential outliers, such as moments in time where certain countries failed to improve sanitation with increased income, or drastic dips/surges in income/sanitation over a single year.
+
+We continue our analysis by merging these two data sets to focus on this hypothesized relationship between 1999 and 2019.
+
+The cleaning process requires removing instances of "k" from some data entries, representing thousands of dollars. For example, we want to perform the following conversion: $12.3k \to 12300$. Notice that the decision to drop NA values was made, since `ggplot` and `lm` will drop NA values and we have an abundance of data entries. This decision will be more convenient later down the road when taking advantage of the country column.
+
+```{r cleaning}
+convert_num <- function(x){ #converts "12.3k" to 12300,  
+  temp <- x
+  if(str_detect(x, "k$")){
+    temp <- x |> 
+      str_replace_all("[^[:digit:]]", "") |> #gross but it just replaces any non-number with ""
+      as.numeric() * 100
+  }
+  return(temp)
+}
+
+#data cleaning + joining
+sanitation.clean <- sanitation.data |>
+  drop_na() |>
+  pivot_longer(cols = `1999`:`2019`,
+               names_to = "year",
+               values_to = "sanitation")
+
+income.clean <- income.data |>
+  drop_na() |> #pretty bold step to remove any rows with na vals, 
+               #but due to the abundance of data seems reasonable
+  select(c(country, `1999`:`2019`)) |>
+  pivot_longer(cols = `1999`:`2019`,
+               names_to = "year",
+               values_to = "income") |>
+  mutate(income = as.numeric(map(income, convert_num)))#converts characters,
+  #able to convert after pivot, b/c data is all seen as strings!
+```
+
+Below is the final, merged, cleaned data set.
+
+```{r join}
+full.data <- inner_join(sanitation.clean, income.clean) |>
+  mutate(year = as.numeric(year))
+
+full.data |>
+  slice_head(n = 1000) |>
+  datatable(class = "cell-border",
+            rownames = FALSE,
+            caption = "Table 3: Preview of Final Data Set.",
+            filter = "top")
+```
+
+# Linear Regression
+
+We aim to piece together the relationship between income and sanitation levels with a linear model. Our goal is to develop a model that predicts the **percent of people with basic sanitation** (response) from **adjusted income per person** (explanatory).
+
+We first visualize the relation between these two variables:
+
+```{r relation}
+data.plot <- full.data |>
+  ggplot(mapping = aes(x = income, y = sanitation) ) +
+  geom_jitter(alpha = 0.5) +
+  geom_smooth(method = lm, level = 0, color = "red") +
+  scale_y_continuous(limits = c(0,100),
+                     breaks = seq(0,100,25)) +
+  labs(title = "Income versus Sanitation, 1999-2019",
+       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       x = "Adjusted Income per Person (in 2017 $)",
+       y = "") 
+
+data.plot
+```
+
+Although the above scatter plot is very messy, we can see a general pattern: countries with low adjusted income per person have lower percentages of people with basic sanitation, whereas countries with high income per person never have less than 90 percent of people with basic sanitation.
+
+However, there are instances where countries with very low income per person have high percentages of people with basic sanitation. Below you can see that the United States has had two years between 1999 and 2019 where adjusted income per person dipped below \$20,000, but over 99% of Americans were able to have access to basic sanitation.
+
+```{r}
+p <- full.data |>
+    mutate(year = as.numeric(year)) |>
+    filter(country == "United States") |>
+    ggplot(mapping = aes(x = income, y = sanitation)) +
+    geom_point() +
+    transition_time(year) +
+    labs(title = "United States Income vs. Sanitation, 1999-2019",
+        subtitle = "Year: {floor(frame_time)}",
+        x = "Adjusted Income Per Person (in 2017 $)",
+        y = "Percentage of People with (at least) Basic Santitation") +
+    shadow_mark(alpha = 1, 
+                size = 1)
+animate(p, duration = 5, fps = 20, renderer = gifski_renderer(), end_pause = 40)
+anim_save("animated_US_plot.gif", animation = last_animation())
+```
+
+Despite an obvious general trend, further investigation is needed to gain insight on discrepancies like the ones above.
+
+We look at the relationship between average income per person and average percentage of people with basic sanitation at their disposal across 1999-2019.
+
+Despite an obvious general trend, further investigation is needed to gain insight on descrepancies like the ones above.
+
+### Relationship over Time:
+
+We look at the relationship between average income per person and average percentage of people with basic sanitation at their disposal across 1999-2019.
+
+```{r}
+temp.plot <- full.data |>
+  mutate(year = as.numeric(year)) |>
+  ggplot(mapping = aes(x = income,
+                       y = sanitation)) +
+  geom_point(show.legend = F) +
+  transition_time(year) +
+  labs(title = "Income versus Sanitation, 1999-2019",
+       subtitle = "Year: {floor(frame_time)}",
+       x = "Adjusted Income per Person (in 2017 $)",
+       y = "Percentage of People with (at least) Basic Sanitation Services") +
+  shadow_mark(keep_layer = T, size = 0.1, alpha = 0.5) +
+  enter_fade() +
+  exit_fade()
+
+animate(temp.plot, duration = 10, fps = 10, renderer = gifski_renderer())
+anim_save("animated_time_plot.gif", animation = last_animation())
+```
+
+## Linear regression
+
+```{r}
+
+data.fit <- lm(sanitation~income, data = full.data)
+summary(data.fit)
+```
+
+Upon fitting a simple linear regression model for percent of people who have access to basic sanitation ($Y$) based on adjusted income per person ($X$), we acquired the following regression equation: $$\hat{Y} = 55.75 + 0.0009699X$$
+
+Our regression equation tells us that a country with an average adjusted income of \$0 will have 55.75% of its people with access to basic sanitation services. Further, for every ten thousand dollars increase in adjusted income per person, a country should expect a 9.699 percent increase in the amount of people who have access to basic sanitation.
+
+## Model Fit
+
+To assess the validity of our linear model, we look at the variances in observed sanitation percentage, predicted sanitation percentage, and residuals:
+
+```{r}
+model_var <- augment(data.fit) |>
+  summarise(var.resp = var(sanitation),
+         var.fitted = var(.fitted),
+         var.resid =var(.resid))
+
+model_var |>
+  kable(caption = "Variance in Observed/Predicted/Residual Sanitation.",
+        col.names = c("Variance in Sanitation", "Variance in Predicted", "Variance in Residuals"),
+        align = c('l', 'l', 'l') )
+```
+
+The proportion of variability accounted for by our model was 0.333. Our model does a good enough job to communicate the general idea that more money means people are going to be cleaner. However, the variable we are hoping to predict is a percentage which means it can not exceed 100%, exposing the flaw that our model will predict impossible to reach sanitation percentages for high enough average income inputs. This gives us problems regarding what we can and can not conclude due to risk of extrapolating further than our data provides. There is not much we can do about this using a simple linear model as we would have to introduce a polynomial regression equation (say, through a logarithmic transformation) to be more precise.
+
+## Simulation
+
+```{r simulation}
+data_predict <- predict(data.fit) #predicted values
+data_sig <- sigma(data.fit) #s or residual std error
+
+noise <- function(x, mean = 0, sd){ #stolen from Prof Robinson :,)
+  x + rnorm(length(x), 
+            mean, 
+            sd)
+}
+
+sim_response <- tibble(sanitation = noise(data_predict, 
+                                           sd = data_sig)
+                      )
+
+head(sim_response)
+
+
+full.dist <- full.data |>
+  ggplot(aes(x = sanitation)) +
+  geom_histogram() +
+  labs(x = "Observed Sanitation Index",
+       y = "",
+       subtitle = "Count") +
+  theme_bw()
+
+sim.dist <- sim_response |>
+  ggplot(aes(x = sanitation)) +
+  geom_histogram() +
+  labs(x = "Simulated Sanitation  Index",
+       y = "",
+       subtitle = "Count") +
+  theme_bw()
+
+full.dist + sim.dist
+
+
+
+nsims <- 1000
+sims <- map_dfc(.x = 1:nsims,
+                .f = ~ tibble(sim = noise(data_predict, 
+                                          sd = data_sig)
+                              )
+                )
+colnames(sims) <- colnames(sims) |> 
+  str_replace(pattern = "\\.\\.\\.",
+                  replace = "_")
+
+head(sims)
+
+temp <- full.data |> 
+  select(sanitation) |>
+  bind_cols(sims)
+  
+sim_r_sq <- temp |> 
+  map(~ lm(sanitation ~ .x, data = temp)) |> 
+  map(glance) |> 
+  map_dbl(~ .x$r.squared)#removes first col
+
+tibble(sims = sim_r_sq[-1]) |> 
+  ggplot(aes(x = sims)) + 
+  geom_histogram(binwidth = 0.0025) +
+  labs(x = expression("Simulated"~ R^2),
+       y = "",
+       subtitle = "Number of Simulated Models")
+```
+
+
+
+Log Transformation tests below, beware as var names below overwrite those above.
+
+
+```{r log-trans}
+
+temp.data <- full.data
+temp.data$income <- log(temp.data$income, base = 2)
+
+  
+temp.data |>
+  ggplot(mapping = aes(x = income, y = sanitation) ) +
+  geom_point() +
+  geom_smooth(method = lm, level = 0, color = "red") +
+  scale_y_continuous(limits = c(0,100),
+                     breaks = seq(0,100,25)) +
+  labs(title = "Income versus Sanitation, 1999-2049",
+       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       x = "Adjusted Income per Person (in 2017 $)",
+       y = "")
+
+temp.fit <- lm(sanitation~income, data = temp.data)
+summary(temp.fit)
+  
+
+
+data_predict <- predict(temp.fit) #predicted values
+data_sig <- sigma(temp.fit) #s or residual std error
+
+noise <- function(x, mean = 0, sd){ #stolen from Prof Robinson :,)
+  x + rnorm(length(x), 
+            mean, 
+            sd)
+}
+
+sim_response <- tibble(sanitation = noise(data_predict, 
+                                           sd = data_sig)
+                      )
+
+head(sim_response)
+
+
+temp.dist <- temp.data |>
+  ggplot(aes(x = sanitation)) +
+  geom_histogram() +
+  labs(x = "Observed Sanitation Index",
+       y = "",
+       subtitle = "Count") +
+  theme_bw()
+
+sim.dist <- sim_response |>
+  ggplot(aes(x = sanitation)) +
+  geom_histogram() +
+  labs(x = "Simulated Sanitation  Index",
+       y = "",
+       subtitle = "Count") +
+  theme_bw()
+
+temp.dist + sim.dist
+
+
+
+nsims <- 1000
+sims <- map_dfc(.x = 1:nsims,
+                .f = ~ tibble(sim = noise(data_predict, 
+                                          sd = data_sig)
+                              )
+                )
+colnames(sims) <- colnames(sims) |> 
+  str_replace(pattern = "\\.\\.\\.",
+                  replace = "_")
+
+head(sims)
+
+temp <- temp.data |> 
+  select(sanitation) |>
+  bind_cols(sims)
+  
+sim_r_sq <- temp |> 
+  map(~ lm(sanitation ~ .x, data = temp)) |> 
+  map(glance) |> 
+  map_dbl(~ .x$r.squared)#removes first col
+
+tibble(sims = sim_r_sq[-1]) |> 
+  ggplot(aes(x = sims)) + 
+  geom_histogram(binwidth = 0.0025) +
+  labs(x = expression("Simulated"~ R^2),
+       y = "",
+       subtitle = "Number of Simulated Models")
+
+```
+
