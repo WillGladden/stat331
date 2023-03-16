@@ -214,8 +214,6 @@ anim_save("animated_time_plot.gif", animation = anim_time)
 
 It looks like almost every data point experiences increases in percentage of people with basic sanitation services coupled with overall increases in adjusted income per person. This gives us more confidence that our hypothesized relationship between our variables is correct, but more in depth analysis is needed before we can conclude anything.
 
-## Linear regression
-
 ```{r fit}
 #| include: false
 data.fit <- lm(sanitation~income, data = full.data)
@@ -224,11 +222,9 @@ summary(data.fit)
 
 Upon fitting a simple linear regression model for percent of people who have access to basic sanitation ($Y$) based on adjusted income per person ($X$), we acquired the following regression equation: $$\hat{Y} = 55.75 + 0.0009699X$$
 
-Our regression equation tells us that a country with an average adjusted income of \$0 will have 55.75 percent of its people with access to basic sanitation services. Further, for every ten thousand dollar increase in adjusted income per person, a country should expect a 9.699 percent increase in the amount of people who have access to basic sanitation.
+Our regression equation tells us that a country with an average adjusted income of \$0 will have 55.75 percent of its people with access to basic sanitation services. Note that this conclusion is an extrapolation since our data does not contain any information about any countries with a $0 adjusted income per person. Our equation also tells us for every ten thousand dollar increase in adjusted income per person, a country should expect a 9.699 percent increase in the amount of people who have access to basic sanitation.
 
-## Model Fit
-
-To assess the validity of our linear model, we look at the variances in observed sanitation percentage, predicted sanitation percentage, and residuals:
+To assess the validity of our linear model, we look at the variances in observed sanitation percentage, predicted sanitation percentage, and residuals.
 
 ```{r variance}
 model_var <- augment(data.fit) |>
@@ -240,9 +236,11 @@ model_var |>
   kable(caption = "Variance in Observed/Predicted/Residual Sanitation.",
         col.names = c("Variance in Sanitation", "Variance in Predicted", "Variance in Residuals"),
         align = c('l', 'l', 'l') )
+
+#need some writing about this table and to make it look nice
 ```
 
-The proportion of variability accounted for by our model was 0.333. Our model does a good enough job to communicate the general idea that more money means people are going to be cleaner. However, the variable we are hoping to predict is a percentage which means it can not exceed 100%, exposing the flaw that our model will predict impossible to reach sanitation percentages for high enough average income inputs. This gives us problems regarding what we can and can not conclude due to risk of extrapolating further than our data provides. There is not much we can do about this using a simple linear model as we would have to introduce a polynomial regression equation (say, through a logarithmic transformation) to be more precise.
+The proportion of variability accounted for by our model was 0.333. Our model does a good enough job to communicate the general idea that the more money people are making, the make likely it is that they will have access to basic sanitation services. However, the variable we are hoping to predict is a percentage which means it can not exceed 100%, exposing the flaw that our model will predict impossible to reach sanitation percentages for high enough average income inputs. This gives us problems regarding what we can and can not conclude due to risk of extrapolating further than our data provides. There is not much we can do about this using a simple linear model as we would have to introduce a polynomial regression equation (say, through a logarithmic transformation) to be more precise.
 
 ## Simulation
 
