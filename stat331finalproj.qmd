@@ -48,7 +48,7 @@ income.data |>
   select(country, `1999`:`2002`) |>
   datatable(class = "cell-border",
             rownames = FALSE,
-            caption = "Table 1: Preview of Income Data Set, 1999-2003.",
+            caption = "Table 1: Preview of Income Data Set, 1999-2002.",
             filter = "top")
 ```
 
@@ -74,9 +74,11 @@ Source: <https://data.worldbank.org/indicator/SH.STA.SMSS.ZS>
 
 We hypothesize that there will be a positive relation between income per person and percentage of people with basic sanitation at their disposal. We would also like to investigate and highlight any potential outliers, such as moments in time where certain countries failed to improve sanitation with increased income, or drastic dips/surges in income/sanitation over a single year.
 
+We would like to be able to predict a country's percentage of people who have access to basic sanitation services based on that country's income per person. 
+
 We continue our analysis by merging these two data sets to focus on this hypothesized relationship between 1999 and 2019.
 
-The cleaning process requires removing instances of "k" from some data entries, representing thousands of dollars. For example, we want to perform the following conversion: $12.3k \to 12300$. Notice that the decision to drop NA values was made, since `ggplot` and `lm` will drop NA values and we have an abundance of data entries. This decision will be more convenient later down the road when taking advantage of the country column.
+The cleaning process requires removing instances of "k" from some data entries, representing thousands of dollars. For example, we had to perform the following conversion: $12.3k \to 12300$ for such entries. Notice that the decision to drop NA values was made, since `ggplot` and `lm` will drop NA values and we have an abundance of data entries. This decision will be more convenient later down the road when taking advantage of the country column.
 
 ```{r cleaning}
 convert_num <- function(x){ #converts "12.3k" to 12300,  
@@ -107,7 +109,7 @@ income.clean <- income.data |>
   #able to convert after pivot, b/c data is all seen as strings!
 ```
 
-Below is the final, merged, cleaned data set.
+Below is the final, merged, and cleaned data set.
 
 ```{r join}
 full.data <- inner_join(sanitation.clean, income.clean) |>
@@ -131,7 +133,6 @@ We first visualize the relation between these two variables:
 data.plot <- full.data |>
   ggplot(mapping = aes(x = income, y = sanitation) ) +
   geom_jitter(alpha = 0.5) +
-  geom_smooth(method = lm, level = 0, color = "red") +
   scale_y_continuous(limits = c(0,100),
                      breaks = seq(0,100,25)) +
   labs(title = "Income versus Sanitation, 1999-2019",
@@ -142,12 +143,12 @@ data.plot <- full.data |>
 data.plot
 ```
 
-Although the above scatter plot is very messy, we can see a general pattern: countries with low adjusted income per person have lower percentages of people with basic sanitation, whereas countries with high income per person never have less than 90 percent of people with basic sanitation.
+Although the above scatter plot is very messy, we can see a general pattern: countries with low adjusted income per person have lower percentages of people with basic sanitation, whereas countries with high income per person rarely have less than 90 percent of people with basic sanitation.
 
-However, there are instances where countries with very low income per person have high percentages of people with basic sanitation. Below you can see that the United States has had two years between 1999 and 2019 where adjusted income per person dipped below \$20,000, but over 99% of Americans were able to have access to basic sanitation.
+However, there are instances where countries with very low income per person have high percentages of people with basic sanitation. Below you can see that Cuba has a relatively low adjusted income per person in the years between 1999 and 2019, but still enjoyed a sanitation percentage above 88 percent. On the other hand you can see that despite adjusted income per person dipping below $20,000, the United States' sanitation percentage never drops below 99 percent. 
 
-```{r}
-p <- full.data |>
+```{r country relationship}
+a <- full.data |>
     mutate(year = as.numeric(year)) |>
     filter(country == "United States") |>
     ggplot(mapping = aes(x = income, y = sanitation)) +
@@ -158,22 +159,39 @@ p <- full.data |>
         x = "Adjusted Income Per Person (in 2017 $)",
         y = "Percentage of People with (at least) Basic Santitation") +
     shadow_mark(alpha = 1, 
+                size = 1) 
+
+w = animate(a, duration = 5, fps = 20, renderer = gifski_renderer(), end_pause = 40)
+anim_save("animated_US_plot.gif", animation = w)
+
+c <- full.data |>
+    mutate(year = as.numeric(year)) |>
+    filter(country == "Cuba") |>
+    ggplot(mapping = aes(x = income, y = sanitation)) +
+    geom_point() +
+    transition_time(year) +
+    labs(title = "Cuba Income vs. Sanitation, 1999-2019",
+        subtitle = "Year: {floor(frame_time)}",
+        x = "Adjusted Income Per Person (in 2017 $)",
+        y = "Percentage of People with (at least) Basic Santitation") +
+    shadow_mark(alpha = 1, 
                 size = 1)
-animate(p, duration = 5, fps = 20, renderer = gifski_renderer(), end_pause = 40)
-anim_save("animated_US_plot.gif", animation = last_animation())
+
+z = animate(c, duration = 5, fps = 20, renderer = gifski_renderer(), end_pause = 40)
+anim_save("animated_Cuba_plot.gif", animation = z)
 ```
 
-Despite an obvious general trend, further investigation is needed to gain insight on discrepancies like the ones above.
+![](animated_Cuba_plot.gif)
 
-We look at the relationship between average income per person and average percentage of people with basic sanitation at their disposal across 1999-2019.
+On the other hand you can see that despite adjusted income per person dipping below $20,000, the United States' sanitation percentage never drops below 99 percent.
 
-Despite an obvious general trend, further investigation is needed to gain insight on descrepancies like the ones above.
+![](animated_US_plot.gif)
 
-### Relationship over Time:
+Despite an obvious general trend, further investigation is needed to reach our goals. 
 
-We look at the relationship between average income per person and average percentage of people with basic sanitation at their disposal across 1999-2019.
+Our next step is to look at how relationship between our variables of interest changes over time.
 
-```{r}
+```{r relationship over time}
 temp.plot <- full.data |>
   mutate(year = as.numeric(year)) |>
   ggplot(mapping = aes(x = income,
@@ -188,27 +206,31 @@ temp.plot <- full.data |>
   enter_fade() +
   exit_fade()
 
-animate(temp.plot, duration = 10, fps = 10, renderer = gifski_renderer())
-anim_save("animated_time_plot.gif", animation = last_animation())
+anim_time = animate(temp.plot, duration = 10, fps = 10, renderer = gifski_renderer())
+anim_save("animated_time_plot.gif", animation = anim_time)
 ```
+
+![](animated_time_plot.gif)
+
+It looks like almost every data point experiences increases in percentage of people with basic sanitation services coupled with overall increases in adjusted income per person. This gives us more confidence that our hypothesized relationship between our variables is correct, but more in depth analysis is needed before we can conclude anything.
 
 ## Linear regression
 
-```{r}
-
+```{r fit}
+#| include: false
 data.fit <- lm(sanitation~income, data = full.data)
 summary(data.fit)
 ```
 
 Upon fitting a simple linear regression model for percent of people who have access to basic sanitation ($Y$) based on adjusted income per person ($X$), we acquired the following regression equation: $$\hat{Y} = 55.75 + 0.0009699X$$
 
-Our regression equation tells us that a country with an average adjusted income of \$0 will have 55.75% of its people with access to basic sanitation services. Further, for every ten thousand dollars increase in adjusted income per person, a country should expect a 9.699 percent increase in the amount of people who have access to basic sanitation.
+Our regression equation tells us that a country with an average adjusted income of \$0 will have 55.75 percent of its people with access to basic sanitation services. Further, for every ten thousand dollar increase in adjusted income per person, a country should expect a 9.699 percent increase in the amount of people who have access to basic sanitation.
 
 ## Model Fit
 
 To assess the validity of our linear model, we look at the variances in observed sanitation percentage, predicted sanitation percentage, and residuals:
 
-```{r}
+```{r variance}
 model_var <- augment(data.fit) |>
   summarise(var.resp = var(sanitation),
          var.fitted = var(.fitted),
