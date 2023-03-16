@@ -29,6 +29,7 @@ library(DT)
 library(kableExtra)
 library(gganimate)
 library(gifski)
+library(patchwork)
 ```
 
 # Introduction
@@ -66,15 +67,13 @@ sanitation.data |>
             filter = "top")
 ```
 
-Our sanitation data set measures the percentage of people (living in both urban and rural settings) who use at lease basic sanitation services not shared with other households. This includes flushing and pouring to piped sewer systems, septic, and ventilation for pit latrines, such as squat toilets.
+Our sanitation data set measures the percentage of people (living in both urban and rural settings) who use at least basic sanitation services not shared with other households. This includes flushing and pouring to piped sewer systems, septic, and ventilation for pit latrines, such as squat toilets.
 
 The data was collected by the World Health Organization and UNICEF, falling between the years of 1999 to 2019.
 
 Source: <https://data.worldbank.org/indicator/SH.STA.SMSS.ZS>
 
-We hypothesize that there will be a positive relation between income per person and percentage of people with basic sanitation at their disposal. We would also like to investigate and highlight any potential outliers, such as moments in time where certain countries failed to improve sanitation with increased income, or drastic dips/surges in income/sanitation over a single year.
-
-We would like to be able to predict a country's percentage of people who have access to basic sanitation services based on that country's income per person. 
+We hypothesize that there will be a positive relation between income per person and percentage of people with basic sanitation at their disposal. We would like to be able to predict a country's percentage of people who have access to basic sanitation services based on that country's income per person. 
 
 We continue our analysis by merging these two data sets to focus on this hypothesized relationship between 1999 and 2019.
 
@@ -127,12 +126,12 @@ full.data |>
 
 We aim to piece together the relationship between income and sanitation levels with a linear model. Our goal is to develop a model that predicts the **percent of people with basic sanitation** (response) from **adjusted income per person** (explanatory).
 
-We first visualize the relation between these two variables:
+We first visualize the relation between these two variables.
 
 ```{r relation}
 data.plot <- full.data |>
   ggplot(mapping = aes(x = income, y = sanitation) ) +
-  geom_jitter(alpha = 0.5) +
+  geom_point(alpha = 0.5) +
   scale_y_continuous(limits = c(0,100),
                      breaks = seq(0,100,25)) +
   labs(title = "Income versus Sanitation, 1999-2019",
@@ -145,10 +144,8 @@ data.plot
 
 Although the above scatter plot is very messy, we can see a general pattern: countries with low adjusted income per person have lower percentages of people with basic sanitation, whereas countries with high income per person rarely have less than 90 percent of people with basic sanitation.
 
-However, there are instances where countries with very low income per person have high percentages of people with basic sanitation. Below you can see that Cuba has a relatively low adjusted income per person in the years between 1999 and 2019, but still enjoyed a sanitation percentage above 88 percent. On the other hand you can see that despite adjusted income per person dipping below $20,000, the United States' sanitation percentage never drops below 99 percent. 
-
 ```{r country relationship}
-a <- full.data |>
+us.plot <- full.data |>
     mutate(year = as.numeric(year)) |>
     filter(country == "United States") |>
     ggplot(mapping = aes(x = income, y = sanitation)) +
@@ -161,10 +158,10 @@ a <- full.data |>
     shadow_mark(alpha = 1, 
                 size = 1) 
 
-w = animate(a, duration = 5, fps = 20, renderer = gifski_renderer(), end_pause = 40)
+w = animate(us.plot, duration = 5, fps = 20, renderer = gifski_renderer(), end_pause = 40)
 anim_save("animated_US_plot.gif", animation = w)
 
-c <- full.data |>
+cuba.plot <- full.data |>
     mutate(year = as.numeric(year)) |>
     filter(country == "Cuba") |>
     ggplot(mapping = aes(x = income, y = sanitation)) +
@@ -177,17 +174,17 @@ c <- full.data |>
     shadow_mark(alpha = 1, 
                 size = 1)
 
-z = animate(c, duration = 5, fps = 20, renderer = gifski_renderer(), end_pause = 40)
+z = animate(cuba.plot, duration = 5, fps = 20, renderer = gifski_renderer(), end_pause = 40)
 anim_save("animated_Cuba_plot.gif", animation = z)
 ```
 
 ![](animated_Cuba_plot.gif)
 
-On the other hand you can see that despite adjusted income per person dipping below $20,000, the United States' sanitation percentage never drops below 99 percent.
+However, there are instances where countries with very low income per person have high percentages of people with basic sanitation. Above, you can see that Cuba has a relatively low adjusted income per person in the years between 1999 and 2019, but still enjoyed a sanitation percentage above 88 percent.
 
 ![](animated_US_plot.gif)
 
-Despite an obvious general trend, further investigation is needed to reach our goals. 
+On the other hand you can see that despite adjusted income per person dipping below $20,000, the United States' sanitation percentage never drops below 99 percent. Despite an obvious general trend, further investigation is needed to reach our goals. 
 
 Our next step is to look at how relationship between our variables of interest changes over time.
 
@@ -220,7 +217,14 @@ data.fit <- lm(sanitation~income, data = full.data)
 summary(data.fit)
 ```
 
-Upon fitting a simple linear regression model for percent of people who have access to basic sanitation ($Y$) based on adjusted income per person ($X$), we acquired the following regression equation: $$\hat{Y} = 55.75 + 0.0009699X$$
+Upon fitting a simple linear regression model for percent of people who have access to basic sanitation ($Y$) based on adjusted income per person ($X$), we acquired the following regression equation: 
+
+$$\hat{Y} = 55.75 + 0.0009699X$$
+
+```{r}
+data.plot + geom_smooth(method = "lm", color = "red")
+```
+
 
 Our regression equation tells us that a country with an average adjusted income of \$0 will have 55.75 percent of its people with access to basic sanitation services. Note that this conclusion is an extrapolation since our data does not contain any information about any countries with a $0 adjusted income per person. Our equation also tells us for every ten thousand dollar increase in adjusted income per person, a country should expect a 9.699 percent increase in the amount of people who have access to basic sanitation.
 
@@ -242,7 +246,7 @@ model_var |>
 
 The proportion of variability accounted for by our model was 0.333. Our model does a good enough job to communicate the general idea that the more money people are making, the make likely it is that they will have access to basic sanitation services. However, the variable we are hoping to predict is a percentage which means it can not exceed 100%, exposing the flaw that our model will predict impossible to reach sanitation percentages for high enough average income inputs. This gives us problems regarding what we can and can not conclude due to risk of extrapolating further than our data provides. There is not much we can do about this using a simple linear model as we would have to introduce a polynomial regression equation (say, through a logarithmic transformation) to be more precise.
 
-## Simulation
+# Simulation
 
 ```{r simulation}
 data_predict <- predict(data.fit) #predicted values
@@ -257,10 +261,10 @@ noise <- function(x, mean = 0, sd){ #stolen from Prof Robinson :,)
 sim_response <- tibble(sanitation = noise(data_predict, 
                                            sd = data_sig)
                       )
+```
 
-head(sim_response)
-
-
+```{r}
+#what is this?
 full.dist <- full.data |>
   ggplot(aes(x = sanitation)) +
   geom_histogram() +
@@ -278,9 +282,26 @@ sim.dist <- sim_response |>
   theme_bw()
 
 full.dist + sim.dist
+```
 
 
+```{r observed vs sim}
+sim.plot <- sim_response |>
+  ggplot(mapping = aes(x = full.data$income, y = sanitation) ) +
+  geom_point(alpha = 0.5) +
+  scale_y_continuous(limits = c(0,100),
+                     breaks = seq(0,100,25)) +
+  labs(title = "Predicted Sanitation versus Income, 1999-2019",
+       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       x = "Adjusted Income per Person (in 2017 $)",
+       y = "") 
 
+sim.plot + data.plot
+#need to make same plot as data vis in beginning. idk how to get income values so i just put the originals
+```
+Similarities and differences in the predicted data vs observed data.
+
+```{r}
 nsims <- 1000
 sims <- map_dfc(.x = 1:nsims,
                 .f = ~ tibble(sim = noise(data_predict, 
@@ -290,8 +311,6 @@ sims <- map_dfc(.x = 1:nsims,
 colnames(sims) <- colnames(sims) |> 
   str_replace(pattern = "\\.\\.\\.",
                   replace = "_")
-
-head(sims)
 
 temp <- full.data |> 
   select(sanitation) |>
@@ -305,11 +324,14 @@ sim_r_sq <- temp |>
 tibble(sims = sim_r_sq[-1]) |> 
   ggplot(aes(x = sims)) + 
   geom_histogram(binwidth = 0.0025) +
-  labs(x = expression("Simulated"~ R^2),
+  labs(titel = "Distribution of $R^2$",
+       x = expression("Simulated"~ R^2),
        y = "",
        subtitle = "Number of Simulated Models")
 ```
 
+discuss implications of above plot
+how well does our model generate data similar to observed
 
 
 Log Transformation tests below, beware as var names below overwrite those above.
