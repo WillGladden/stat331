@@ -229,7 +229,7 @@ $$\hat{Y} = 55.75 + 0.0009699X$$
 data.plot + geom_smooth(method = "lm", color = "red")
 ```
 
-Our simple linear regression equation from "data.fit" tells us that a country with an average adjusted income of \$0 will be predicted to have a 55.75 percent of its people with access to basic sanitation services. Note that this conclusion is an extrapolation since our data does not contain any information about any countries with a \$0 adjusted income per person. Our equation also tells us for every ten thousand dollar increase in adjusted income per person, a country's average sanitation percentage increases by 9.699 points.
+Our simple linear regression equation tells us that a country with an average adjusted income of \$0 will be predicted to have a 55.75 percent of its people with access to basic sanitation services. Note that this conclusion is an extrapolation since our data does not contain any information about any countries with a \$0 adjusted income per person. Our equation also tells us for every ten thousand dollar increase in adjusted income per person, a country's average sanitation percentage increases by 9.699 points.
 
 To assess the validity of our linear model, we look at the variance in observed sanitation percentage, predicted sanitation percentage, and residuals.
 
@@ -254,6 +254,8 @@ model_var |>
 The proportion of variability accounted for by our model was `r data_r2`. Our model does a good enough job to communicate the general idea that the more money people are making, the make likely it is that they will have access to basic sanitation services. However, the variable we are hoping to predict is a percentage which means it can not exceed 100%, exposing the flaw that our model will predict impossible to reach sanitation percentages for high enough average income inputs. This gives us problems regarding what we can and can not conclude due to risk of extrapolating further than our data provides. There is not much we can do about this using a simple linear model as we would have to introduce a polynomial regression equation (say, through a logarithmic transformation) to be more precise.
 
 # Simulation
+
+To further investigate the quality of our model, we created a simulated data set using our regression model and the actual adjusted income amounts as inputs. Below are plots comparing the observed data and our simulated data.
 
 ```{r simulation}
 data_predict <- predict(data.fit) #predicted values
@@ -290,24 +292,35 @@ sim.dist <- sim_response |>
 full.dist + sim.dist
 ```
 
+Above are histograms of basic sanitation percentage in the observed data and our simulated data, which highlight the poor quality of our model. While our observed data is skewed to the left, the simulated data follows a normal distribution. Furthermore, they highlight the weakness that our model outputs sanitation percentages that are more than 100 percent, which make some conclusions meaningless.
+
 ```{r observed vs sim}
 sim.plot <- sim_response |>
   ggplot(mapping = aes(x = full.data$income, y = sanitation) ) +
   geom_point(alpha = 0.5) +
-  scale_y_continuous(limits = c(0,100),
-                     breaks = seq(0,100,25)) +
+  scale_y_continuous(limits = c(0,200),
+                     breaks = seq(0,200,25)) +
   labs(title = "Predicted Sanitation versus Income, 1999-2019",
        subtitle = "Percentage of People with (at least) Basic Sanitation Services",
        x = "Adjusted Income per Person (in 2017 $)",
        y = "") 
 
-sim.plot + data.plot
-#need to make same plot as data vis in beginning. idk how to get income values so i just put the originals
+data.plot2 <- full.data |>
+  ggplot(mapping = aes(x = income, y = sanitation) ) +
+  geom_point(alpha = 0.5) +
+  scale_y_continuous(limits = c(0,200),
+                     breaks = seq(0,200,25)) +
+  labs(title = "Income versus Sanitation, 1999-2019",
+       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       x = "Adjusted Income per Person (in 2017 $)",
+       y = "") 
+
+sim.plot + data.plot2
 ```
 
-Similarities and differences in the predicted data vs observed data.
+Comparing plots of percentage of people with basic sanitation and adjusted income per person for the observed and simulated data provides us more evidence of the flaws of our model. Even though the simulated data communicates the general idea of the observed data, it seems that our model oversimplifies the relationship between our variables. 
 
-```{r}
+```{r sim models plot}
 nsims <- 1000
 sims <- map_dfc(.x = 1:nsims,
                 .f = ~ tibble(sim = noise(data_predict, 
@@ -338,30 +351,37 @@ tibble(sims = sim_r_sq[-1]) |>
 
 discuss implications of above plot how well does our model generate data similar to observed
 
-Log Transformation tests below, beware as var names below overwrite those above.
+# Log Transformed Model
 
-```{r log-trans}
+We wanted to attempt a log transformation of adjusted income per person in order to improve our model. Upon doing this, we received the following regression equation.
 
+```{r log trans}
 temp.data <- full.data
-temp.data$income <- log(temp.data$income, base = 2)
+temp.data$income <- log(temp.data$income, base = 2) #transforming by log base 2
 
-  
+temp.fit <- lm(sanitation~income, data = temp.data) #fitting new model
+```
+
+
+$$\hat{Y} = -102.2536 + 13.32\text{log}_2(X)$$
+
+```{r plot model 2}
 temp.data |>
   ggplot(mapping = aes(x = income, y = sanitation) ) +
   geom_point() +
   geom_smooth(method = lm, level = 0, color = "red") +
   scale_y_continuous(limits = c(0,100),
                      breaks = seq(0,100,25)) +
-  labs(title = "Income versus Sanitation, 1999-2049",
+  labs(title = "$Log Transformed Income versus Sanitation, 1999-2049",
        subtitle = "Percentage of People with (at least) Basic Sanitation Services",
-       x = "Adjusted Income per Person (in 2017 $)",
+       x = "Log Adjusted Income per Person (in 2017 $)",
        y = "")
-
-temp.fit <- lm(sanitation~income, data = temp.data)
-summary(temp.fit)
-  
+```
 
 
+If we double adjusted income per person, our new model predicts a 13.31 percent increase in the mean value of percentage of people with access to basic sanitation. The proportion of variability accounted for by this model was 0.5651. This is much better than the non transformed model, but still not great. This model still outputs sanitation percentages over 100 percent, but does it much less often. The data does seem to curve, so the introduction of a polynomial regression equation might improve the model; but for our purposes, this is sufficient.
+
+```{r log sim}
 data_predict <- predict(temp.fit) #predicted values
 data_sig <- sigma(temp.fit) #s or residual std error
 
@@ -374,10 +394,11 @@ noise <- function(x, mean = 0, sd){ #stolen from Prof Robinson :,)
 sim_response <- tibble(sanitation = noise(data_predict, 
                                            sd = data_sig)
                       )
+```
 
-head(sim_response)
+We decided another simulation was needed on this model to see how much better it was compared to our previous one. 
 
-
+```{r hist of log sim}
 temp.dist <- temp.data |>
   ggplot(aes(x = sanitation)) +
   geom_histogram() +
@@ -395,9 +416,38 @@ sim.dist <- sim_response |>
   theme_bw()
 
 temp.dist + sim.dist
+```
 
+Talk about improvements of this model in simulating data
+briefly about its flaws
 
+```{r observed vs log sim}
+sim.plot <- sim_response |>
+  ggplot(mapping = aes(x = temp.data$income, y = sanitation) ) +
+  geom_point(alpha = 0.5) +
+  scale_y_continuous(limits = c(0,200),
+                     breaks = seq(0,200,25)) +
+  labs(title = "Predicted Sanitation versus Log Income, 1999-2019",
+       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       x = "Adjusted Income per Person (in 2017 $)",
+       y = "") 
 
+data.plot2 <- temp.data |>
+  ggplot(mapping = aes(x = income, y = sanitation) ) +
+  geom_point(alpha = 0.5) +
+  scale_y_continuous(limits = c(0,200),
+                     breaks = seq(0,200,25)) +
+  labs(title = "Log Income versus Sanitation, 1999-2019",
+       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       x = "Adjusted Income per Person (in 2017 $)",
+       y = "") 
+
+sim.plot + data.plot2
+```
+
+Same thing as above in terms of these plots 
+
+```{r log sim model plot}
 nsims <- 1000
 sims <- map_dfc(.x = 1:nsims,
                 .f = ~ tibble(sim = noise(data_predict, 
@@ -407,8 +457,6 @@ sims <- map_dfc(.x = 1:nsims,
 colnames(sims) <- colnames(sims) |> 
   str_replace(pattern = "\\.\\.\\.",
                   replace = "_")
-
-head(sims)
 
 temp <- temp.data |> 
   select(sanitation) |>
@@ -425,8 +473,9 @@ tibble(sims = sim_r_sq[-1]) |>
   labs(x = expression("Simulated"~ R^2),
        y = "",
        subtitle = "Number of Simulated Models")
-
 ```
+
+discuss implications of above plot how well does our model generate data similar to observed
 
 # References
 
