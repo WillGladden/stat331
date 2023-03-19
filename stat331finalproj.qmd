@@ -263,8 +263,7 @@ sim_response <- tibble(sanitation = noise(data_predict,
                       )
 ```
 
-```{r}
-#what is this?
+```{r hist of sim data}
 full.dist <- full.data |>
   ggplot(aes(x = sanitation)) +
   geom_histogram() +
