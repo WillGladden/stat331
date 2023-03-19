@@ -55,8 +55,6 @@ income.data |>
 
 Our income data set measures the total GDP of a country per person for 216 countries between the years of 1892 and 2049, with units in fixed 2017 prices. This number is adjusted for PPP, or the differences between costs of living and essential products, across countries. The data comes from the World Bank, the Maddison Project Database, and the Penn World Table. Historical estimates were used for early years; forecasts from the IMF's Economic Outlook were used to project income in the future.
 
-Source: <https://www.gapminder.org/data/documentation/gd001/>
-
 ```{r}
 sanitation.data |>
   slice_head(n = 1000) |>
@@ -71,9 +69,7 @@ Our sanitation data set measures the percentage of people (living in both urban 
 
 The data was collected by the World Health Organization and UNICEF, falling between the years of 1999 to 2019.
 
-Source: <https://data.worldbank.org/indicator/SH.STA.SMSS.ZS>
-
-We hypothesize that there will be a positive relation between income per person and percentage of people with basic sanitation at their disposal. We would like to be able to predict a country's percentage of people who have access to basic sanitation services based on that country's income per person. 
+We hypothesize that there will be a positive relation between income per person and percentage of people with basic sanitation at their disposal. We would like to be able to predict a country's percentage of people who have access to basic sanitation services based on that country's income per person.
 
 We continue our analysis by merging these two data sets to focus on this hypothesized relationship between 1999 and 2019.
 
@@ -178,15 +174,15 @@ z = animate(cuba.plot, duration = 5, fps = 20, renderer = gifski_renderer(), end
 anim_save("animated_Cuba_plot.gif", animation = z)
 ```
 
+However, there are instances where countries with very low income per person have high percentages of people with basic sanitation. For example, Cuba has a relatively low adjusted income per person in the years between 1999 and 2019, but still enjoyed a sanitation percentage above 88 percent; this continued to rise as income per person increased.
+
 ![](animated_Cuba_plot.gif)
 
-However, there are instances where countries with very low income per person have high percentages of people with basic sanitation. Above, you can see that Cuba has a relatively low adjusted income per person in the years between 1999 and 2019, but still enjoyed a sanitation percentage above 88 percent.
+Another exception to the rule has some countries drop to low income per person while maintaining similar sanitation levels. There was a period in time when the United States' adjusted income per person dropped below \$20,000; yet the percentage of people with basic sanitation never drops below 99 percent within this time frame. Despite an obvious general trend, further investigation is needed to stake a stronger claim.
 
 ![](animated_US_plot.gif)
 
-On the other hand you can see that despite adjusted income per person dipping below $20,000, the United States' sanitation percentage never drops below 99 percent. Despite an obvious general trend, further investigation is needed to reach our goals. 
-
-Our next step is to look at how relationship between our variables of interest changes over time.
+Our next step is to look at how the relationship between our variables of interest changed over time.
 
 ```{r relationship over time}
 temp.plot <- full.data |>
@@ -209,26 +205,33 @@ anim_save("animated_time_plot.gif", animation = anim_time)
 
 ![](animated_time_plot.gif)
 
-It looks like almost every data point experiences increases in percentage of people with basic sanitation services coupled with overall increases in adjusted income per person. This gives us more confidence that our hypothesized relationship between our variables is correct, but more in depth analysis is needed before we can conclude anything.
+The plot above, specifically the shadow trails on each point, tells us that almost every data point experiences an increase in percentage of people with basic sanitation services, coupled with overall increases in adjusted income per person. This gives us more confidence that our hypothesized relationship between our variables is correct, but more in depth analysis is needed before we can conclude anything.
 
 ```{r fit}
 #| include: false
 data.fit <- lm(sanitation~income, data = full.data)
 summary(data.fit)
+
+# storing R^2 value
+data_r2 <- lm(sanitation ~ income, 
+             data = full.data
+             ) |> 
+  glance() |> 
+  select(r.squared) |> 
+  pull()
 ```
 
-Upon fitting a simple linear regression model for percent of people who have access to basic sanitation ($Y$) based on adjusted income per person ($X$), we acquired the following regression equation: 
+Upon fitting a simple linear regression model for percent of people who have access to basic sanitation ($Y$) based on adjusted income per person ($X$), we acquired the following regression equation:
 
 $$\hat{Y} = 55.75 + 0.0009699X$$
 
-```{r}
+```{r linplot}
 data.plot + geom_smooth(method = "lm", color = "red")
 ```
 
+Our simple linear regression equation from "data.fit" tells us that a country with an average adjusted income of \$0 will be predicted to have a 55.75 percent of its people with access to basic sanitation services. Note that this conclusion is an extrapolation since our data does not contain any information about any countries with a \$0 adjusted income per person. Our equation also tells us for every ten thousand dollar increase in adjusted income per person, a country's average sanitation percentage increases by 9.699 points.
 
-Our regression equation tells us that a country with an average adjusted income of \$0 will have 55.75 percent of its people with access to basic sanitation services. Note that this conclusion is an extrapolation since our data does not contain any information about any countries with a $0 adjusted income per person. Our equation also tells us for every ten thousand dollar increase in adjusted income per person, a country should expect a 9.699 percent increase in the amount of people who have access to basic sanitation.
-
-To assess the validity of our linear model, we look at the variances in observed sanitation percentage, predicted sanitation percentage, and residuals.
+To assess the validity of our linear model, we look at the variance in observed sanitation percentage, predicted sanitation percentage, and residuals.
 
 ```{r variance}
 model_var <- augment(data.fit) |>
@@ -237,14 +240,18 @@ model_var <- augment(data.fit) |>
          var.resid =var(.resid))
 
 model_var |>
-  kable(caption = "Variance in Observed/Predicted/Residual Sanitation.",
-        col.names = c("Variance in Sanitation", "Variance in Predicted", "Variance in Residuals"),
-        align = c('l', 'l', 'l') )
-
-#need some writing about this table and to make it look nice
+  kbl(
+    col.names = c("Variance in Sanitation", "Variance in Predicted", "Variance in Residuals"),
+    caption = "Table 4: Variance in Observed/Predicted/Residual Sanitation."
+  ) |>
+  kable_styling(bootstrap_options = "bordered",
+                position = "center",
+                font_size = 18,
+                html_font = "helvetica"
+                )
 ```
 
-The proportion of variability accounted for by our model was 0.333. Our model does a good enough job to communicate the general idea that the more money people are making, the make likely it is that they will have access to basic sanitation services. However, the variable we are hoping to predict is a percentage which means it can not exceed 100%, exposing the flaw that our model will predict impossible to reach sanitation percentages for high enough average income inputs. This gives us problems regarding what we can and can not conclude due to risk of extrapolating further than our data provides. There is not much we can do about this using a simple linear model as we would have to introduce a polynomial regression equation (say, through a logarithmic transformation) to be more precise.
+The proportion of variability accounted for by our model was `r data_r2`. Our model does a good enough job to communicate the general idea that the more money people are making, the make likely it is that they will have access to basic sanitation services. However, the variable we are hoping to predict is a percentage which means it can not exceed 100%, exposing the flaw that our model will predict impossible to reach sanitation percentages for high enough average income inputs. This gives us problems regarding what we can and can not conclude due to risk of extrapolating further than our data provides. There is not much we can do about this using a simple linear model as we would have to introduce a polynomial regression equation (say, through a logarithmic transformation) to be more precise.
 
 # Simulation
 
@@ -283,7 +290,6 @@ sim.dist <- sim_response |>
 full.dist + sim.dist
 ```
 
-
 ```{r observed vs sim}
 sim.plot <- sim_response |>
   ggplot(mapping = aes(x = full.data$income, y = sanitation) ) +
@@ -298,6 +304,7 @@ sim.plot <- sim_response |>
 sim.plot + data.plot
 #need to make same plot as data vis in beginning. idk how to get income values so i just put the originals
 ```
+
 Similarities and differences in the predicted data vs observed data.
 
 ```{r}
@@ -329,12 +336,9 @@ tibble(sims = sim_r_sq[-1]) |>
        subtitle = "Number of Simulated Models")
 ```
 
-discuss implications of above plot
-how well does our model generate data similar to observed
-
+discuss implications of above plot how well does our model generate data similar to observed
 
 Log Transformation tests below, beware as var names below overwrite those above.
-
 
 ```{r log-trans}
 
@@ -424,3 +428,12 @@ tibble(sims = sim_r_sq[-1]) |>
 
 ```
 
+# References
+
+Income Data Set. Collected by World Bank, Maddison Project, Penn World Table (University of Groningen).
+
+-   Source: <https://www.gapminder.org/data/documentation/gd001/>
+
+Sanitation Data Set. Collected by World Health Organization, UNICEF.
+
+-   Source: <https://data.worldbank.org/indicator/SH.STA.SMSS.ZS>
