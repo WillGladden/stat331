@@ -320,6 +320,28 @@ sim.plot + data.plot2
 
 Comparing plots of percentage of people with basic sanitation and adjusted income per person for the observed and simulated data provides us more evidence of the flaws of our model. Even though the simulated data communicates the general idea of the observed data, it seems that our model oversimplifies the relationship between our variables. 
 
+```{r}
+sim_data <- temp.data |> 
+  select(sanitation) |> #dont have to filter since we threw out na values in beggining
+  bind_cols(sim_response)
+
+sim_data |> 
+  ggplot(aes(x = sanitation...1, 
+             y = sanitation...2)
+         ) + 
+  geom_point(alpha = 0.4) + 
+   labs(x = "Observed Sanitation", 
+        y = "",
+        subtitle = "Simulated Sanitation" ) + 
+  geom_abline(slope = 1,
+              intercept = 0, 
+              color = "steelblue",
+              linetype = "dashed",
+              lwd = 1.5) +
+  theme_bw()
+```
+Overall, it appears that there are many over estimates for low observed sanitaiton and a range of estimates at large observed sanitation, with majority being under. It appears there is a “weak” relationship between the observed values and simulated values, as the points are far from the linear. However based on previous stat knowledge it does not appear that a linear model is the most appropriate here and a transformation may be due; however, we will explore this later in the article.
+
 ```{r sim models plot}
 nsims <- 1000
 sims <- map_dfc(.x = 1:nsims,
@@ -338,7 +360,7 @@ temp <- full.data |>
 sim_r_sq <- temp |> 
   map(~ lm(sanitation ~ .x, data = temp)) |> 
   map(glance) |> 
-  map_dbl(~ .x$r.squared)#removes first col
+  map_dbl(~ .x$r.squared) #removes first col
 
 tibble(sims = sim_r_sq[-1]) |> 
   ggplot(aes(x = sims)) + 
@@ -347,9 +369,14 @@ tibble(sims = sim_r_sq[-1]) |>
        x = expression("Simulated"~ R^2),
        y = "",
        subtitle = "Number of Simulated Models")
+
+
+normean = mean(sim_r_sq[-1]) 
+#.319 in recent run
 ```
 
-discuss implications of above plot how well does our model generate data similar to observed
+In this plot, we see that the simulated datasets have $R^2$ values between 0.08 and 0.15. This indicates the data simulated under this statistical model is weakly similar to what was observed. On average, our simulated data account for about 11% of the variability in the observed sanitation index.
+
 
 # Log Transformed Model
 
@@ -385,13 +412,7 @@ If we double adjusted income per person, our new model predicts a 13.31 percent 
 data_predict <- predict(temp.fit) #predicted values
 data_sig <- sigma(temp.fit) #s or residual std error
 
-noise <- function(x, mean = 0, sd){ #stolen from Prof Robinson :,)
-  x + rnorm(length(x), 
-            mean, 
-            sd)
-}
-
-sim_response <- tibble(sanitation = noise(data_predict, 
+sim_response_log <- tibble(sanitation = noise(data_predict, 
                                            sd = data_sig)
                       )
 ```
@@ -399,37 +420,38 @@ sim_response <- tibble(sanitation = noise(data_predict,
 We decided another simulation was needed on this model to see how much better it was compared to our previous one. 
 
 ```{r hist of log sim}
-temp.dist <- temp.data |>
+temp.dist.log <- temp.data |>
   ggplot(aes(x = sanitation)) +
   geom_histogram() +
-  labs(x = "Observed Sanitation Index",
+  labs(x = "Observed Sanitation Index (log)",
        y = "",
        subtitle = "Count") +
   theme_bw()
 
-sim.dist <- sim_response |>
+sim.dist.log <- sim_response_log |>
   ggplot(aes(x = sanitation)) +
   geom_histogram() +
-  labs(x = "Simulated Sanitation  Index",
+  labs(x = "Simulated Sanitation Index (log)",
        y = "",
        subtitle = "Count") +
   theme_bw()
 
-temp.dist + sim.dist
+temp.dist.log + sim.dist.log
+
+sim.dist.log + sim.dist
 ```
 
-Talk about improvements of this model in simulating data
-briefly about its flaws
+Overlall, we see that our simulated sanitation index with the log transformation is similarly centered as our non-transformed model. However, our transformed distribution is more stout, with a slight reduction in range and less of a tendency to have values around the mean.
 
 ```{r observed vs log sim}
-sim.plot <- sim_response |>
+sim.plot.log <- sim_response_log |>
   ggplot(mapping = aes(x = temp.data$income, y = sanitation) ) +
   geom_point(alpha = 0.5) +
   scale_y_continuous(limits = c(0,200),
                      breaks = seq(0,200,25)) +
   labs(title = "Predicted Sanitation versus Log Income, 1999-2019",
        subtitle = "Percentage of People with (at least) Basic Sanitation Services",
-       x = "Adjusted Income per Person (in 2017 $)",
+       x = "Adjusted Income per Person (in 2017 $ log)",
        y = "") 
 
 data.plot2 <- temp.data |>
@@ -439,13 +461,36 @@ data.plot2 <- temp.data |>
                      breaks = seq(0,200,25)) +
   labs(title = "Log Income versus Sanitation, 1999-2019",
        subtitle = "Percentage of People with (at least) Basic Sanitation Services",
-       x = "Adjusted Income per Person (in 2017 $)",
+       x = "Adjusted Income per Person (in 2017 $ log)",
        y = "") 
 
-sim.plot + data.plot2
-```
 
-Same thing as above in terms of these plots 
+sim.plot.log + data.plot2
+```
+We still have dramatic differences in the distribution and shape of these plots, however, the general trend between these two is much more similar compared to our non-transformed.
+
+```{r }
+sim_data <- temp.data |> 
+  select(sanitation) |> #dont have to filter since we threw out na values in beggining
+  bind_cols(sim_response_log)
+
+sim_data |> 
+  ggplot(aes(x = sanitation...1, 
+             y = sanitation...2)
+         ) + 
+  geom_point(alpha = 0.4) + 
+   labs(x = "Observed Sanitation", 
+        y = "",
+        subtitle = "Simulated Sanitation" ) + 
+  geom_abline(slope = 1,
+              intercept = 0, 
+              color = "steelblue",
+              linetype = "dashed",
+              lwd = 1.5) +
+  theme_bw()
+```
+It seems that when comparing the simulated to observed, we still tend to overpredict at lower sanitation instantces and generally under predict when the observed sanitation is higher or near 100. Next, we can visualize how this relationship behaves over the long runs with many simulated sanitation values under a similar process to before. 
+
 
 ```{r log sim model plot}
 nsims <- 1000
@@ -473,9 +518,13 @@ tibble(sims = sim_r_sq[-1]) |>
   labs(x = expression("Simulated"~ R^2),
        y = "",
        subtitle = "Number of Simulated Models")
+
+
+
+logmean = mean(sim_r_sq[-1])
 ```
 
-discuss implications of above plot how well does our model generate data similar to observed
+In this plot, we see that the simulated datasets have $R^2$ valUes between 0.3 and 0.34. This indicates the data simulated under this statistical model is weakly similar to what was observed. On average, our simulated data account for about 32% of the variability in the observed sanitation index with a transformed log model.
 
 # References
 
