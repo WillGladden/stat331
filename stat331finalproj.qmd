@@ -321,7 +321,7 @@ sim.plot + data.plot2
 Comparing plots of percentage of people with basic sanitation and adjusted income per person for the observed and simulated data provides us more evidence of the flaws of our model. Even though the simulated data communicates the general idea of the observed data, it seems that our model oversimplifies the relationship between our variables. 
 
 ```{r}
-sim_data <- temp.data |> 
+sim_data <- full.data |> 
   select(sanitation) |> #dont have to filter since we threw out na values in beggining
   bind_cols(sim_response)
 
