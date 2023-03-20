@@ -340,7 +340,8 @@ sim_data |>
               lwd = 1.5) +
   theme_bw()
 ```
-Overall, it appears that there are many over estimates for low observed sanitaiton and a range of estimates at large observed sanitation, with majority being under. It appears there is a “weak” relationship between the observed values and simulated values, as the points are far from the linear. However based on previous stat knowledge it does not appear that a linear model is the most appropriate here and a transformation may be due; however, we will explore this later in the article.
+
+Overall, it appears that there are many over estimates for low observed sanitation and a range of estimates at large observed sanitation, with majority being under. It appears there is a “weak” relationship between the observed values and simulated values, as the points are far from the linear. However based on previous stat knowledge it does not appear that a linear model is the most appropriate here and a transformation may be due; however, we will explore this later in the article.
 
 ```{r sim models plot}
 nsims <- 1000
@@ -375,7 +376,7 @@ normean = mean(sim_r_sq[-1])
 #.319 in recent run
 ```
 
-In this plot, we see that the simulated datasets have $R^2$ values between 0.08 and 0.15. This indicates the data simulated under this statistical model is weakly similar to what was observed. On average, our simulated data account for about 11% of the variability in the observed sanitation index.
+In this plot, we see that the simulated datasets have $R^2$ values between 0.08 and 0.15. This indicates the data simulated under this statistical model is weakly similar to what was observed. On average, our simulated data account for about 11% of the variability in the observed sanitation index. This seems to be the final nail in the coffin for us to be able to say for sure that this model is not good.
 
 
 # Log Transformed Model
@@ -404,7 +405,6 @@ temp.data |>
        x = "Log Adjusted Income per Person (in 2017 $)",
        y = "")
 ```
-
 
 If we double adjusted income per person, our new model predicts a 13.31 percent increase in the mean value of percentage of people with access to basic sanitation. The proportion of variability accounted for by this model was 0.5651. This is much better than the non transformed model, but still not great. This model still outputs sanitation percentages over 100 percent, but does it much less often. The data does seem to curve, so the introduction of a polynomial regression equation might improve the model; but for our purposes, this is sufficient.
 
@@ -467,6 +467,7 @@ data.plot2 <- temp.data |>
 
 sim.plot.log + data.plot2
 ```
+
 We still have dramatic differences in the distribution and shape of these plots, however, the general trend between these two is much more similar compared to our non-transformed.
 
 ```{r }
@@ -489,8 +490,8 @@ sim_data |>
               lwd = 1.5) +
   theme_bw()
 ```
-It seems that when comparing the simulated to observed, we still tend to overpredict at lower sanitation instantces and generally under predict when the observed sanitation is higher or near 100. Next, we can visualize how this relationship behaves over the long runs with many simulated sanitation values under a similar process to before. 
 
+It seems that when comparing the simulated to observed, we still tend to over predict at lower sanitation instances and generally under predict when the observed sanitation is higher or near 100. Next, we can visualize how this relationship behaves over the long runs with many simulated sanitation values under a similar process to before. 
 
 ```{r log sim model plot}
 nsims <- 1000
@@ -524,7 +525,7 @@ tibble(sims = sim_r_sq[-1]) |>
 logmean = mean(sim_r_sq[-1])
 ```
 
-In this plot, we see that the simulated datasets have $R^2$ valUes between 0.3 and 0.34. This indicates the data simulated under this statistical model is weakly similar to what was observed. On average, our simulated data account for about 32% of the variability in the observed sanitation index with a transformed log model.
+In this plot, we see that the simulated data sets have $R^2$ values between 0.3 and 0.34. This indicates the data simulated under this statistical model is weakly similar to what was observed. On average, our simulated data account for about 32% of the variability in the observed sanitation index with a transformed log model.
 
 # References
 
