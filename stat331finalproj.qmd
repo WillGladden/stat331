@@ -131,7 +131,7 @@ data.plot <- full.data |>
   scale_y_continuous(limits = c(0,100),
                      breaks = seq(0,100,25)) +
   labs(title = "Income versus Sanitation, 1999-2019",
-       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       subtitle = "Percentage of People with Basic Sanitation Services",
        x = "Adjusted Income per Person (in 2017 $)",
        y = "") 
 
@@ -148,9 +148,10 @@ us.plot <- full.data |>
     geom_point() +
     transition_time(year) +
     labs(title = "United States Income vs. Sanitation, 1999-2019",
-        subtitle = "Year: {floor(frame_time)}",
+        subtitle = "Percentage of People with Basic Santitation",
         x = "Adjusted Income Per Person (in 2017 $)",
-        y = "Percentage of People with (at least) Basic Santitation") +
+        y = "",
+        tag = "Year: {floor(frame_time)}") +
     shadow_mark(alpha = 1, 
                 size = 1) 
 
@@ -164,9 +165,10 @@ cuba.plot <- full.data |>
     geom_point() +
     transition_time(year) +
     labs(title = "Cuba Income vs. Sanitation, 1999-2019",
-        subtitle = "Year: {floor(frame_time)}",
+        subtitle = "Percentage of People with Basic Santitation",
         x = "Adjusted Income Per Person (in 2017 $)",
-        y = "Percentage of People with (at least) Basic Santitation") +
+        y = "",
+        tag = "Year: {floor(frame_time)}") +
     shadow_mark(alpha = 1, 
                 size = 1)
 
@@ -192,9 +194,10 @@ temp.plot <- full.data |>
   geom_point(show.legend = F) +
   transition_time(year) +
   labs(title = "Income versus Sanitation, 1999-2019",
-       subtitle = "Year: {floor(frame_time)}",
+       subtitle = "Percentage of People with Basic Sanitation Services",
        x = "Adjusted Income per Person (in 2017 $)",
-       y = "Percentage of People with (at least) Basic Sanitation Services") +
+       y = "",
+       tag = "Year: {floor(frame_time)}") +
   shadow_mark(keep_layer = T, size = 0.1, alpha = 0.5) +
   enter_fade() +
   exit_fade()
@@ -301,7 +304,7 @@ sim.plot <- sim_response |>
   scale_y_continuous(limits = c(0,200),
                      breaks = seq(0,200,25)) +
   labs(title = "Predicted Sanitation versus Income, 1999-2019",
-       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       subtitle = "Percentage of People with Basic Sanitation Services",
        x = "Adjusted Income per Person (in 2017 $)",
        y = "") 
 
@@ -311,7 +314,7 @@ data.plot2 <- full.data |>
   scale_y_continuous(limits = c(0,200),
                      breaks = seq(0,200,25)) +
   labs(title = "Income versus Sanitation, 1999-2019",
-       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       subtitle = "Percentage of People with Basic Sanitation Services",
        x = "Adjusted Income per Person (in 2017 $)",
        y = "") 
 
@@ -400,8 +403,8 @@ temp.data |>
   geom_smooth(method = lm, level = 0, color = "red") +
   scale_y_continuous(limits = c(0,100),
                      breaks = seq(0,100,25)) +
-  labs(title = "$Log Transformed Income versus Sanitation, 1999-2049",
-       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+  labs(title = "Log Transformed Income versus Sanitation, 1999-2049",
+       subtitle = "Percentage of People with Basic Sanitation Services",
        x = "Log Adjusted Income per Person (in 2017 $)",
        y = "")
 ```
@@ -450,7 +453,7 @@ sim.plot.log <- sim_response_log |>
   scale_y_continuous(limits = c(0,200),
                      breaks = seq(0,200,25)) +
   labs(title = "Predicted Sanitation versus Log Income, 1999-2019",
-       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       subtitle = "Percentage of People with Basic Sanitation Services",
        x = "Adjusted Income per Person (in 2017 $ log)",
        y = "") 
 
@@ -460,7 +463,7 @@ data.plot2 <- temp.data |>
   scale_y_continuous(limits = c(0,200),
                      breaks = seq(0,200,25)) +
   labs(title = "Log Income versus Sanitation, 1999-2019",
-       subtitle = "Percentage of People with (at least) Basic Sanitation Services",
+       subtitle = "Percentage of People with Basic Sanitation Services",
        x = "Adjusted Income per Person (in 2017 $ log)",
        y = "") 
 
